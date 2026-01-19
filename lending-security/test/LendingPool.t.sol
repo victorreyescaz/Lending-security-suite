@@ -1,4 +1,11 @@
 // SPDX-License-Identifier: MIT
+
+/*
+Skeleton minimo para el protocolo.
+Despliega WETH9, MochUSDC, OracleMock
+Crea LendingPool, deposita USDC de liquidez y hace un flujo básico de despositETH + borrowETH para comprobar que la compilación funciona y que el pool se puede usar en un escenario simple.
+*/
+
 pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
