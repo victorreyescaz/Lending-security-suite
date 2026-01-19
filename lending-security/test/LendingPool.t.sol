@@ -2,8 +2,8 @@
 
 /*
 Skeleton minimo para el protocolo.
-Despliega WETH9, MochUSDC, OracleMock
-Crea LendingPool, deposita USDC de liquidez y hace un flujo básico de despositETH + borrowETH para comprobar que la compilación funciona y que el pool se puede usar en un escenario simple.
+Despliega WETH9, MockUSDC, OracleMock.
+Crea LendingPool, deposita USDC de liquidez y valida flujos basicos para auditar el comportamiento del pool.
 */
 
 pragma solidity ^0.8.24;
@@ -21,8 +21,11 @@ contract LendingPoolTest is Test {
     OracleMock oracle;
 
     address alice = makeAddr("alice");
+    address bob = makeAddr("bob");
+    address liquidator = makeAddr("liquidator");
     uint256 constant ETH_USD = 2000e8;
 
+    // Despliega mocks y el pool, deja liquidez USDC lista para los tests.
     function setUp() public {
         weth = new WETH9();
         usdc = new MockUSDC();
@@ -32,13 +35,13 @@ contract LendingPoolTest is Test {
             address(weth),
             address(usdc),
             address(oracle),
-            7500,
-            8000,
-            200,
-            400,
-            2000,
-            8000,
-            1000
+            7500, // LTV_BPS => 75% Loan-to-value
+            8000, // LIQ_THRESHOLD_BPS => 80% umbral de liquidación
+            200, // BASE_RATE_BPS => 2% tasa base anual
+            400, // SLOPE1_BPS => 4% pendiente hasta el kink
+            2000, // SLOPE2_BPS => 20% pendiente por encima del kink
+            8000, // OPTIMAL_UTIL_BPS => 80% utilizacion optima kink
+            1000 // RESERVE_FAVTOR_BPS => 10% de intereses para reservas
         );
 
         usdc.mint(address(this), 1_000_000e6);
@@ -46,12 +49,14 @@ contract LendingPoolTest is Test {
         pool.depositUSDC(500_000e6);
     }
 
-    function testSetup() public {
+    // Verifica que el wiring (cableado) basico del pool coincide con los mocks desplegados.
+    function testSetup() public view {
         assertEq(address(pool.WETH()), address(weth));
         assertEq(address(pool.USDC()), address(usdc));
         assertEq(pool.borrowIndex(), 1e27);
     }
 
+    // Flujo happy path ("camino feliz"), el siguiente flujo tiene que realizarse correctamente: depositar ETH y pedir prestado USDC por debajo del maximo.
     function testDepositAndBorrow() public {
         vm.deal(alice, 1 ether);
         vm.startPrank(alice);
@@ -62,5 +67,105 @@ contract LendingPoolTest is Test {
         vm.stopPrank();
 
         assertEq(usdc.balanceOf(alice), borrowAmount);
+    }
+
+    // Reversion esperada si el usuario intenta pedir mas del maximo permitido.
+    function testBorrowAboveMaxReverts() public {
+        vm.deal(alice, 1 ether);
+        vm.startPrank(alice);
+        pool.depositETH{value: 1 ether}();
+        uint256 maxBorrow = pool.getBorrowMax(alice);
+        vm.expectRevert(LendingPool.HealthFactorTooLow.selector);
+        pool.borrowUSDC(maxBorrow + 1);
+        vm.stopPrank();
+    }
+
+    // Retirar colateral cuando HF quedaria < 1, debe revertir.
+    function testWithdrawBelowHealthFactorReverts() public {
+        vm.deal(alice, 1 ether);
+        vm.startPrank(alice);
+        pool.depositETH{value: 1 ether}();
+        uint256 maxBorrow = pool.getBorrowMax(alice);
+        pool.borrowUSDC(maxBorrow);
+        vm.expectRevert(LendingPool.HealthFactorTooLow.selector);
+        pool.withdrawETH(0.1 ether);
+        vm.stopPrank();
+    }
+
+    // Repago parcial, reduce la deuda del usuario.
+    function testRepayReducesDebt() public {
+        vm.deal(alice, 1 ether);
+        vm.startPrank(alice);
+        pool.depositETH{value: 1 ether}();
+        pool.borrowUSDC(1_000e6);
+        uint256 debtBefore = pool.getUserDebtUSDC(alice);
+        usdc.approve(address(pool), type(uint256).max);
+        pool.repayUSDC(400e6);
+        uint256 debtAfter = pool.getUserDebtUSDC(alice);
+        vm.stopPrank();
+
+        assertEq(debtAfter, debtBefore - 400e6);
+    }
+
+    // Simula una caída del precio del ETH que deja a Alice bajo el umbral de liquidación, el liquidator repaga parte de la deuda y recibe colateral.
+
+    function testLiquidationSeizesCollateralWhenUnderwater() public {
+        vm.deal(alice, 1 ether);
+        vm.startPrank(alice);
+        pool.depositETH{value: 1 ether}();
+        pool.borrowUSDC(1_200e6);
+        vm.stopPrank();
+
+        oracle.setPrice(1000e8);
+
+        usdc.mint(liquidator, 1_000e6);
+        vm.startPrank(liquidator);
+        usdc.approve(address(pool), type(uint256).max);
+        uint256 debtBefore = pool.getUserDebtUSDC(alice);
+        uint256 collateralBefore = pool.collateralWETH(alice);
+        pool.liquidate(alice, 600e6);
+        vm.stopPrank();
+
+        uint256 debtAfter = pool.getUserDebtUSDC(alice);
+        uint256 collateralAfter = pool.collateralWETH(alice);
+        assertLt(debtAfter, debtBefore);
+        assertLt(collateralAfter, collateralBefore);
+        assertGt(weth.balanceOf(liquidator), 0);
+    }
+
+    // Cuando el pool esta pausado, borrow y withdraw deben revertir.
+    function testPauseBlocksBorrowAndWithdraw() public {
+        vm.deal(alice, 1 ether);
+        vm.startPrank(alice);
+        pool.depositETH{value: 1 ether}();
+        vm.stopPrank();
+
+        pool.pause();
+
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        pool.borrowUSDC(100e6);
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        pool.withdrawETH(0.1 ether);
+        vm.stopPrank();
+    }
+
+    // Solo el owner puede actualizar parametros administrativos.
+    function testOnlyOwnerCanUpdateParams() public {
+        vm.startPrank(bob);
+        vm.expectRevert(
+            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob)
+        );
+        pool.setReserveFactor(500);
+        vm.stopPrank();
+    }
+
+    // La funcion accrue debe aumentar el borrowIndex con el paso del tiempo.
+    function testAccrueIncreasesBorrowIndexOverTime() public {
+        uint256 beforeIndex = pool.borrowIndex();
+        vm.warp(block.timestamp + 1 hours);
+        pool.accrue();
+        uint256 afterIndex = pool.borrowIndex();
+        assertGt(afterIndex, beforeIndex);
     }
 }
