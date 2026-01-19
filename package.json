@@ -1,0 +1,11 @@
+{
+  "name": "lending-security-suite",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm test"
+  },
+  "author": "Victor Reyes",
+  "license": "MIT",
+  "description": ""
+}

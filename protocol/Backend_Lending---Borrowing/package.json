@@ -1,0 +1,27 @@
+{
+  "name": "lendingborrowing",
+  "version": "1.0.0",
+  "description": "Protocol for putting up ETHSepolia as collateral and borrow USDC",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "hardhat test",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
+    "deploy:local": "hardhat run scripts/deploy.ts",
+    "interact:sepolia": "hardhat run scripts/interact.ts --network sepolia",
+    "interact:local": "hardhat run scripts/interact.ts"
+  },
+  "author": "Victor Reyes",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.1.0",
+    "@types/node": "^22.19.2",
+    "hardhat": "^2.27.2",
+    "typescript": "~5.8.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.4.0"
+  }
+}
