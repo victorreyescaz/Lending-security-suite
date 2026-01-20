@@ -9,5 +9,9 @@ remappings = [
 ]
 fs_permissions = [{ access = "read", path = "../protocol/Backend_Lending---Borrowing" }]
 
+[profile.default.invariant]
+runs = 128
+depth = 500
+
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
