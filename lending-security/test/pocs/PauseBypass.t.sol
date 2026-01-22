@@ -5,6 +5,7 @@ pragma solidity ^0.8.24;
 PoC pause-bypass
 
 Verifica que funciones criticas (borrow/withdraw/liquidate) no pueden ejecutarse cuando el pool esta en pausa.
+Tambien que funciones como depositETH, depositUSDC y repayUSDC siguen funcionando cuando el pool está pausado.
 */
 
 import "forge-std/Test.sol";
@@ -79,6 +80,25 @@ contract PauseBypassPoC is Test {
         usdc.approve(address(pool), type(uint256).max);
         vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
         pool.liquidate(borrower, 500e6);
+        vm.stopPrank();
+    }
+
+    // Demuestra que depositETH, depositUSDC y repayUSDC siguen funcionando cuando el pool está pausado
+    function testPauseAllowsDepositAndRepay() public {
+        pool.pause();
+
+        vm.deal(borrower, 1 ether);
+        vm.prank(borrower);
+        pool.depositETH{value: 0.1 ether}();
+
+        vm.startPrank(lender);
+        usdc.approve(address(pool), type(uint256).max);
+        pool.depositUSDC(1_000e6);
+        vm.stopPrank();
+
+        vm.startPrank(borrower);
+        usdc.approve(address(pool), type(uint256).max);
+        pool.repayUSDC(100e6);
         vm.stopPrank();
     }
 }
