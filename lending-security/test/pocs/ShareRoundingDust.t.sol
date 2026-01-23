@@ -66,6 +66,8 @@ contract ShareRoundingDustPoC is Test {
     - Lender retira todo getUserSupplyUSDC
 
     - Quedan supplyShares(lender) > 0 pero getUserSupplyUSDC(lender) == 0
+
+    - Comprobacion de que el lender no puede hacer withdrawUSDC(1), revierte con InsufficientShares
     */
     function testWithdrawAllLeavesShareDust() public {
         vm.deal(borrower, 1000 ether);
@@ -91,5 +93,10 @@ contract ShareRoundingDustPoC is Test {
 
         assertGt(pool.supplyShares(lender), 0);
         assertEq(pool.getUserSupplyUSDC(lender), 0);
+
+        vm.startPrank(lender);
+        vm.expectRevert(LendingPool.InsufficientShares.selector);
+        pool.withdrawUSDC(1);
+        vm.stopPrank();
     }
 }
