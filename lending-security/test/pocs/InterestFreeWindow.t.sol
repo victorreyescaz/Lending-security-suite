@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 /*
-PoC "interest-free window": 
+PoC interest-free window: 
 
 _accrue ignora periodos < 60s, por lo que un borrow y repay en menos de un minuto no genera interes. Despues de 60s, el borrowIndex sube y la deuda crece.
 */
@@ -69,6 +69,23 @@ contract InterestFreeWindowPoC is Test {
 
         assertEq(pool.borrowIndex(), indexBefore);
         assertEq(pool.getUserDebtUSDC(borrower), BORROW_AMOUNT);
+    }
+
+    // borrow + repay en menos de 60s no genera interes adicional
+    function testBorrowRepayUnder60sPaysNoInterest() public {
+        _openBorrow();
+        uint256 indexBefore = pool.borrowIndex();
+
+        vm.warp(block.timestamp + 59);
+        pool.accrue();
+
+        vm.startPrank(borrower);
+        usdc.approve(address(pool), type(uint256).max);
+        pool.repayUSDC(BORROW_AMOUNT);
+        vm.stopPrank();
+
+        assertEq(pool.borrowIndex(), indexBefore);
+        assertEq(pool.getUserDebtUSDC(borrower), 0);
     }
 
     // borrowIndex sube y la deuda del borrower es mayor que el principal ya que han pasado mas de 60s
