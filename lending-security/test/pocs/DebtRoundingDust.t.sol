@@ -6,6 +6,9 @@ PoC rounding/dust de deuda
 
 Pagar "todo" (getUserDebtUSDC) puede dejar scaledDebt residual por redondeo. Con uso alto del pool
 el borrowIndex sube y esa deuda fantasma puede reaparecer aunque el usuario crea haber cerrado.
+
+Ademas, repayUSDC revierte con ZeroAmount si la deuda visible es 0, dejando al usuario sin forma
+de cerrar el residuo.
 */
 
 import "forge-std/Test.sol";
@@ -78,6 +81,36 @@ contract DebtRoundingDustPoC is Test {
 
         assertEq(pool.getUserDebtUSDC(borrower), 0);
         assertGt(pool.scaledDebtUSDC(borrower), 0);
+    }
+
+    /*
+    Si la deuda visible es 0 pero queda scaledDebt, repayUSDC revierte con ZeroAmount,
+    dejando al usuario sin forma de cerrar el residuo.
+    */
+    function testRepayZeroDebtRevertsWithDust() public {
+        vm.deal(borrower, 1 ether);
+        vm.startPrank(borrower);
+        pool.depositETH{value: 1 ether}();
+        pool.borrowUSDC(1e6);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 120);
+        pool.accrue();
+
+        uint256 debtUsdc = pool.getUserDebtUSDC(borrower);
+        usdc.mint(borrower, debtUsdc);
+        vm.startPrank(borrower);
+        usdc.approve(address(pool), type(uint256).max);
+        pool.repayUSDC(debtUsdc);
+        vm.stopPrank();
+
+        assertEq(pool.getUserDebtUSDC(borrower), 0);
+        assertGt(pool.scaledDebtUSDC(borrower), 0);
+
+        vm.startPrank(borrower);
+        vm.expectRevert(LendingPool.ZeroAmount.selector);
+        pool.repayUSDC(1);
+        vm.stopPrank();
     }
 
     /*
