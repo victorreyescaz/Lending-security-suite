@@ -41,7 +41,7 @@ contract LendingPoolTest is Test {
             400, // SLOPE1_BPS => 4% pendiente hasta el kink
             2000, // SLOPE2_BPS => 20% pendiente por encima del kink
             8000, // OPTIMAL_UTIL_BPS => 80% utilizacion optima kink
-            1000 // RESERVE_FAVTOR_BPS => 10% de intereses para reservas
+            1000 // RESERVE_FACTOR_BPS => 10% de intereses para reservas
         );
 
         usdc.mint(address(this), 1_000_000e6);
@@ -167,5 +167,21 @@ contract LendingPoolTest is Test {
         pool.accrue();
         uint256 afterIndex = pool.borrowIndex();
         assertGt(afterIndex, beforeIndex);
+    }
+
+    // El borrow rate debe aumentar mas rapido cuando la utilizacion supera el kink (OPTIMAL_UTIL_BPS).
+    function testBorrowRateIncreasesAboveKink() public {
+        uint256 rateAtLowUtil = pool.getBorrowRateBps();
+
+        vm.deal(alice, 1000 ether);
+        vm.startPrank(alice);
+        pool.depositETH{value: 1000 ether}();
+        pool.borrowUSDC(450_000e6);
+        vm.stopPrank();
+
+        uint256 rateAtHighUtil = pool.getBorrowRateBps();
+
+        assertGt(rateAtHighUtil, rateAtLowUtil);
+        assertGt(pool.getUtilizationBps(), pool.OPTIMAL_UTIL_BPS());
     }
 }
