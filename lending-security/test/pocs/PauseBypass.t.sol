@@ -7,6 +7,7 @@ PoC pause-bypass
 Verifica que funciones criticas (borrow/withdraw/liquidate) no pueden ejecutarse cuando el pool esta en pausa.
 Tambien que funciones como depositETH, depositUSDC y repayUSDC siguen funcionando cuando el pool está pausado.
 Incluye el riesgo operativo de pausar durante un crash: las liquidaciones quedan bloqueadas.
+Ademas, muestra que un repay parcial no restaura el HF mientras la pausa impide liquidar.
 */
 
 import "forge-std/Test.sol";
@@ -119,6 +120,37 @@ contract PauseBypassPoC is Test {
         // Se pausa el pool, el liquidador ya no puede actuar
         pool.pause();
 
+        usdc.mint(liquidator, 1_000e6);
+        vm.startPrank(liquidator);
+        usdc.approve(address(pool), type(uint256).max);
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        pool.liquidate(borrower, 500e6);
+        vm.stopPrank();
+    }
+
+    /*
+    Crash + pausa + repay parcial no limpia la insolvencia.
+    La posicion sigue underwater y la liquidacion permanece bloqueada.
+    */
+    function testPausePartialRepayDoesNotRestoreHealth() public {
+        vm.startPrank(borrower);
+        pool.borrowUSDC(300e6);
+        vm.stopPrank();
+
+        oracle.setPrice(500e8);
+        assertLt(pool.getHealthFactor(borrower), 1e18);
+
+        pool.pause();
+
+        // Repay parcial durante la pausa
+        usdc.mint(borrower, 100e6);
+        vm.startPrank(borrower);
+        usdc.approve(address(pool), type(uint256).max);
+        pool.repayUSDC(100e6);
+        vm.stopPrank();
+
+        // Sigue underwater y no se puede liquidar por estar pausado
+        assertLt(pool.getHealthFactor(borrower), 1e18);
         usdc.mint(liquidator, 1_000e6);
         vm.startPrank(liquidator);
         usdc.approve(address(pool), type(uint256).max);
