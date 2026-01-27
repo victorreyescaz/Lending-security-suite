@@ -6,6 +6,7 @@ PoC riesgo de gobernanza:
 
 El owner puede cambiar el oraculo a uno malicioso y permitir over-borrow con precio inflado. No es bug tecnico, es riesgo de control/gobernanza
 El owner tambien puede cambiar parametros de riesgo y volver liquidables posiciones existentes sin mover el precio.
+El owner tambien puede forzar un shock de intereses ajustando el rate model y empeorar rapidamente el HF.
 */
 
 import "forge-std/Test.sol";
@@ -89,6 +90,27 @@ contract GovernanceOracleSwapPoC is Test {
         assertGt(hfBefore, 1e18);
 
         pool.setRiskParams(7000, 7000);
+
+        uint256 hfAfter = pool.getHealthFactor(borrower);
+        assertLt(hfAfter, 1e18);
+    }
+
+    // El owner puede cambiar el rate model para disparar el interes y degradar el HF rapidamente.
+    function testOwnerRateModelShockHurtsHealthFactor() public {
+        vm.deal(borrower, 1 ether);
+        vm.startPrank(borrower);
+        pool.depositETH{value: 1 ether}();
+        pool.borrowUSDC(1_000e6);
+        vm.stopPrank();
+
+        uint256 hfBefore = pool.getHealthFactor(borrower);
+        assertGt(hfBefore, 1e18);
+
+        // Kink en 0 y slope2 extremo para inflar el borrowIndex incluso con baja utilizacion.
+        pool.setRateModel(0, 0, 20_000_000_000_000_000, 0);
+
+        vm.warp(block.timestamp + 365 days);
+        pool.accrue();
 
         uint256 hfAfter = pool.getHealthFactor(borrower);
         assertLt(hfAfter, 1e18);
