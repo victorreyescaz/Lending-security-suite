@@ -184,4 +184,31 @@ contract LendingPoolTest is Test {
         assertGt(rateAtHighUtil, rateAtLowUtil);
         assertGt(pool.getUtilizationBps(), pool.OPTIMAL_UTIL_BPS());
     }
+
+    /*
+   _accrue debe tolerar time-travel hacia atras: no cambia el index y resetea lastAccrual.
+    - Avanza 1h => borrowIndex sube
+    - Vuelve 30s atras => borrowIndex no cambia y lastAccrual se actualiza al nuevo ts
+    - Avanza 61s => vuelve a subir el borrowIndex 
+    */
+    function testAccrueHandlesBackwardTime() public {
+        uint256 indexBefore = pool.borrowIndex();
+
+        vm.warp(block.timestamp + 1 hours);
+        pool.accrue();
+
+        uint256 indexAfterForward = pool.borrowIndex();
+        uint256 lastAfterForward = pool.lastAccrual();
+        assertGt(indexAfterForward, indexBefore);
+
+        vm.warp(lastAfterForward - 30);
+        pool.accrue();
+
+        assertEq(pool.borrowIndex(), indexAfterForward);
+        assertEq(pool.lastAccrual(), lastAfterForward - 30);
+
+        vm.warp(pool.lastAccrual() + 61);
+        pool.accrue();
+        assertGt(pool.borrowIndex(), indexAfterForward);
+    }
 }
