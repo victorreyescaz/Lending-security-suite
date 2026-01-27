@@ -6,6 +6,7 @@ PoC rounding/dust en shares
 
 Retirar "todo" (getUserSupplyUSDC) puede dejar shares residuales por redondeo. Con el ratio assets/shares cambiado
 (por interes y movimientos de deuda), esas shares pueden quedar inrescatables cuando getUserSupplyUSDC devuelve 0.
+Tambien se muestra que un micro-deposit puede revertir si el precio por share se dispara.
 */
 
 import "forge-std/Test.sol";
@@ -23,6 +24,7 @@ contract ShareRoundingDustPoC is Test {
     address lender = makeAddr("lender");
     address lender2 = makeAddr("lender2");
     address borrower = makeAddr("borrower");
+    address micro = makeAddr("micro");
 
     uint256 constant FAIR_PRICE = 2000e8;
 
@@ -97,6 +99,30 @@ contract ShareRoundingDustPoC is Test {
         vm.startPrank(lender);
         vm.expectRevert(LendingPool.InsufficientShares.selector);
         pool.withdrawUSDC(1);
+        vm.stopPrank();
+    }
+
+    /*
+    Fuerza precio por share muy alto subiendo rate model y demuestra que un micro-deposit revierte InsufficientShares
+    */
+    function testMicroDepositRevertsWhenSharePriceHuge() public {
+        vm.deal(borrower, 1000 ether);
+        vm.startPrank(borrower);
+        pool.depositETH{value: 1000 ether}();
+        pool.borrowUSDC(900_000e6);
+        vm.stopPrank();
+
+        // Fuerza modelo de interes extremo para inflar el precio por share rapidamente. baseRateBps, slope1Bps, slope2Bps, optimalUtilBps
+        pool.setRateModel(0, 0, 20_000_000_000_000_000, 0);
+
+        vm.warp(block.timestamp + 365 days);
+        pool.accrue();
+
+        usdc.mint(micro, 1);
+        vm.startPrank(micro);
+        usdc.approve(address(pool), type(uint256).max);
+        vm.expectRevert(LendingPool.InsufficientShares.selector);
+        pool.depositUSDC(1);
         vm.stopPrank();
     }
 }
