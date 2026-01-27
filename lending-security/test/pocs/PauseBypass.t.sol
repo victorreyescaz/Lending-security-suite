@@ -6,6 +6,7 @@ PoC pause-bypass
 
 Verifica que funciones criticas (borrow/withdraw/liquidate) no pueden ejecutarse cuando el pool esta en pausa.
 Tambien que funciones como depositETH, depositUSDC y repayUSDC siguen funcionando cuando el pool está pausado.
+Incluye el riesgo operativo de pausar durante un crash: las liquidaciones quedan bloqueadas.
 */
 
 import "forge-std/Test.sol";
@@ -99,6 +100,30 @@ contract PauseBypassPoC is Test {
         vm.startPrank(borrower);
         usdc.approve(address(pool), type(uint256).max);
         pool.repayUSDC(100e6);
+        vm.stopPrank();
+    }
+
+    /*
+    Riesgo operativo: si el protocolo entra en pausa durante un crash, las liquidaciones quedan bloqueadas y el bad debt puede acumularse.
+    */
+    function testPauseBlocksLiquidationAfterCrash() public {
+        // Aumenta la deuda para que el borrower quede underwater tras el crash
+        vm.startPrank(borrower);
+        pool.borrowUSDC(300e6);
+        vm.stopPrank();
+
+        // Crash de precio deja la posicion liquidable
+        oracle.setPrice(500e8);
+        assertLt(pool.getHealthFactor(borrower), 1e18);
+
+        // Se pausa el pool, el liquidador ya no puede actuar
+        pool.pause();
+
+        usdc.mint(liquidator, 1_000e6);
+        vm.startPrank(liquidator);
+        usdc.approve(address(pool), type(uint256).max);
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        pool.liquidate(borrower, 500e6);
         vm.stopPrank();
     }
 }
