@@ -5,6 +5,7 @@ pragma solidity ^0.8.24;
 PoC de rounding/dust en liquidaciones
 
 Escenarios donde una cuenta es liquidable pero la liquidacion revierte por minimos (deuda muy pequeña, colateral insuficiente o precio que hace que el seize (cantidad de colateral que se confisca al user liquidado y se entrega al liquidator a cambio de repagar la deuda) quede por debajo del minimo.
+Tambien muestra el close factor como riesgo operativo: una liquidacion grande se parte en rondas, aumentando costes.
 */
 
 import "forge-std/Test.sol";
@@ -123,6 +124,44 @@ contract LiquidationRoundingPoC is Test {
         _prepareLiquidator(minUsdc);
         vm.expectRevert(LendingPool.DustAmount.selector);
         pool.liquidate(borrower, minUsdc);
+        _finalizeLiquidator();
+    }
+
+    /*
+    Close factor griefing:
+    - Borrower queda underwater
+    - El liquidator intenta liquidar todo, pero se limita por CLOSE_FACTOR_BPS
+    - Se requieren multiples rondas para limpiar la deuda
+    */
+    function testCloseFactorRequiresMultipleLiquidations() public {
+        vm.deal(borrower, 1 ether);
+        vm.startPrank(borrower);
+        pool.depositETH{value: 1 ether}();
+        uint256 maxBorrow = pool.getBorrowMax(borrower);
+        pool.borrowUSDC(maxBorrow);
+        vm.stopPrank();
+
+        oracle.setPrice(1000e8);
+        assertLt(pool.getHealthFactor(borrower), 1e18);
+
+        _prepareLiquidator(2_000_000e6);
+
+        uint256 debtBefore = pool.getUserDebtUSDC(borrower);
+        uint256 collateralBefore = pool.collateralWETH(borrower);
+        pool.liquidate(borrower, debtBefore);
+
+        uint256 debtAfter = pool.getUserDebtUSDC(borrower);
+        uint256 collateralAfter = pool.collateralWETH(borrower);
+        assertGt(debtBefore, debtAfter);
+        assertGt(collateralBefore, collateralAfter);
+        assertGt(debtAfter, 0);
+        assertLt(pool.getHealthFactor(borrower), 1e18);
+
+        // Segunda ronda necesaria para seguir reduciendo deuda
+        pool.liquidate(borrower, debtAfter);
+        uint256 debtAfter2 = pool.getUserDebtUSDC(borrower);
+        assertGt(debtAfter, debtAfter2);
+
         _finalizeLiquidator();
     }
 }
