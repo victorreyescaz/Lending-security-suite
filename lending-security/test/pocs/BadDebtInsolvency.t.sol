@@ -5,12 +5,14 @@ pragma solidity ^0.8.24;
 PoC bad debt/insolvency
 
 Una caida brusca de precio deja deuda residual despues de liquidaciones y reduce la capacidad de retiro de lenders.
+Ademas, muestra riesgo de liquidez (bank-run) si un borrower drena el cash del pool.
 
 - Borrower toma el maximo
 - Caida brusca de precio deja posicion underwater
 - Liquidaciones sucesivas agotan el colateral
 - Queda deuda residual
 - El efectivo del pool es menor que lo que el lender debería poder retirar
+- Bank-run: borrower toma toda la liquidez y el lender no puede retirar su supply completo
 */
 
 import "forge-std/Test.sol";
@@ -135,5 +137,25 @@ contract BadDebtInsolvencyPoC is Test {
         uint256 lenderSupply = pool.getUserSupplyUSDC(lender);
         uint256 poolCash = usdc.balanceOf(address(pool));
         assertLt(poolCash, lenderSupply);
+    }
+
+    /*
+    Riesgo de liquidez (bank-run):
+    - Borrower toma toda la liquidez del pool
+    - Lender intenta retirar su supply completo
+    - Revert por InsufficientLiquidity
+    */
+    function testLenderWithdrawRevertsWhenPoolHasNoLiquidity() public {
+        vm.deal(borrower, 1000 ether);
+        vm.startPrank(borrower);
+        pool.depositETH{value: 1000 ether}();
+        pool.borrowUSDC(1_500_000e6);
+        vm.stopPrank();
+
+        uint256 withdrawable = pool.getUserSupplyUSDC(lender);
+        vm.startPrank(lender);
+        vm.expectRevert(LendingPool.InsufficientLiquidity.selector);
+        pool.withdrawUSDC(withdrawable);
+        vm.stopPrank();
     }
 }
