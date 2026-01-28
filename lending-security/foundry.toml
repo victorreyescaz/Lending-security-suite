@@ -7,7 +7,10 @@ remappings = [
   "@openzeppelin/=lib/openzeppelin-contracts/",
   "protocol/=../protocol/Backend_Lending---Borrowing/contracts/"
 ]
-fs_permissions = [{ access = "read", path = "../protocol/Backend_Lending---Borrowing" }]
+fs_permissions = [
+  { access = "read", path = "../protocol/Backend_Lending---Borrowing" },
+  { access = "read-write", path = "../monitoring" }
+]
 
 [profile.default.invariant]
 runs = 128
