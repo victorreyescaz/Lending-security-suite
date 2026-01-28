@@ -4,6 +4,15 @@
 Skeleton minimo para el protocolo.
 Despliega WETH9, MockUSDC, OracleMock.
 Crea LendingPool, deposita USDC de liquidez y valida flujos basicos para auditar el comportamiento del pool.
+Incluye tests de control de acceso admin, rescueToken y reverts esperados en liquidacion.
+
+Cubre:
+- Wiring del pool y mocks
+- Flujos básicos (deposit/borrow/repay/withdraw)
+- Liquidación y reverts esperados
+- Pausa y control de acceso admin
+- Comportamiento de accrue y rate model (kink)
+- Reglas de rescueToken
 */
 
 pragma solidity ^0.8.24;
@@ -160,6 +169,26 @@ contract LendingPoolTest is Test {
         vm.stopPrank();
     }
 
+    // Solo el owner puede llamar setOracle, setRiskParams y setRateModel.
+    function testOnlyOwnerCanCallAdminFunctions() public {
+        vm.startPrank(bob);
+        vm.expectRevert(
+            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob)
+        );
+        pool.setOracle(address(oracle));
+
+        vm.expectRevert(
+            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob)
+        );
+        pool.setRiskParams(7000, 7500);
+
+        vm.expectRevert(
+            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob)
+        );
+        pool.setRateModel(100, 200, 300, 7000);
+        vm.stopPrank();
+    }
+
     // La funcion accrue debe aumentar el borrowIndex con el paso del tiempo.
     function testAccrueIncreasesBorrowIndexOverTime() public {
         uint256 beforeIndex = pool.borrowIndex();
@@ -210,5 +239,39 @@ contract LendingPoolTest is Test {
         vm.warp(pool.lastAccrual() + 61);
         pool.accrue();
         assertGt(pool.borrowIndex(), indexAfterForward);
+    }
+
+    // rescueToken debe rechazar token cero y tokens core (USDC/WETH).
+    function testRescueTokenRejectsCoreAndZero() public {
+        vm.expectRevert(LendingPool.Unsupported.selector);
+        pool.rescueToken(address(0), alice, 1);
+
+        vm.expectRevert(LendingPool.Unsupported.selector);
+        pool.rescueToken(address(usdc), alice, 1);
+
+        vm.expectRevert(LendingPool.Unsupported.selector);
+        pool.rescueToken(address(weth), alice, 1);
+    }
+
+    // Liquidar cuando no hay deuda o cuando la posicion es saludable debe revertir.
+    function testLiquidationRevertsWhenNoDebtOrHealthy() public {
+        usdc.mint(liquidator, 1_000e6);
+        vm.startPrank(liquidator);
+        usdc.approve(address(pool), type(uint256).max);
+
+        vm.expectRevert(LendingPool.NotLiquidatable.selector);
+        pool.liquidate(alice, 1_000e6);
+        vm.stopPrank();
+
+        vm.deal(alice, 1 ether);
+        vm.startPrank(alice);
+        pool.depositETH{value: 1 ether}();
+        pool.borrowUSDC(500e6);
+        vm.stopPrank();
+
+        vm.startPrank(liquidator);
+        vm.expectRevert(LendingPool.NotLiquidatable.selector);
+        pool.liquidate(alice, 100e6);
+        vm.stopPrank();
     }
 }
