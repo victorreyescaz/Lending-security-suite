@@ -32,3 +32,5 @@ jobs:
         uses: crytic/slither-action@v0.3.1
         with:
           target: protocol/Backend_Lending---Borrowing
+          slither-config: slither.config.json
+          fail-on: high
