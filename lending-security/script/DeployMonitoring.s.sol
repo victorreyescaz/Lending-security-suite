@@ -23,18 +23,8 @@ contract DeployMonitoringScript is Script {
         MockUSDC usdc = new MockUSDC();
         OracleMock oracle = new OracleMock(2000e8);
 
-        LendingPool pool = new LendingPool(
-            address(weth),
-            address(usdc),
-            address(oracle),
-            7500,
-            8000,
-            200,
-            400,
-            2000,
-            8000,
-            1000
-        );
+        LendingPool pool =
+            new LendingPool(address(weth), address(usdc), address(oracle), 7500, 8000, 200, 400, 2000, 8000, 1000);
 
         vm.stopBroadcast();
 

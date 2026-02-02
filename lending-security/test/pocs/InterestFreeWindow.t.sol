@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 /*
-PoC interest-free window: 
+PoC interest-free window:
 
 _accrue ignora periodos < 60s, por lo que un borrow y repay en menos de un minuto no genera interes. Despues de 60s, el borrowIndex sube y la deuda crece.
 Tambien se muestra el redondeo por minuto: el interes solo se aplica al completar bloques de 60s.
@@ -31,18 +31,7 @@ contract InterestFreeWindowPoC is Test {
         usdc = new MockUSDC();
         oracle = new OracleMock(FAIR_PRICE);
 
-        pool = new LendingPool(
-            address(weth),
-            address(usdc),
-            address(oracle),
-            7500,
-            8000,
-            200,
-            400,
-            2000,
-            8000,
-            1000
-        );
+        pool = new LendingPool(address(weth), address(usdc), address(oracle), 7500, 8000, 200, 400, 2000, 8000, 1000);
 
         usdc.mint(lender, 1_000_000e6);
         vm.startPrank(lender);

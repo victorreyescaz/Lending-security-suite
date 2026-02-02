@@ -38,18 +38,7 @@ contract BadDebtInsolvencyPoC is Test {
         usdc = new MockUSDC();
         oracle = new OracleMock(FAIR_PRICE);
 
-        pool = new LendingPool(
-            address(weth),
-            address(usdc),
-            address(oracle),
-            7500,
-            8000,
-            200,
-            400,
-            2000,
-            8000,
-            1000
-        );
+        pool = new LendingPool(address(weth), address(usdc), address(oracle), 7500, 8000, 200, 400, 2000, 8000, 1000);
 
         usdc.mint(lender, 2_000_000e6);
         vm.startPrank(lender);
@@ -63,9 +52,7 @@ contract BadDebtInsolvencyPoC is Test {
     - Si todo cuadra, devuelve ok=true y un repay seguro
     - Si no cuadra devuelve ok=false
     */
-    function _liquidationQuote(
-        address user
-    ) internal view returns (bool ok, uint256 repay) {
+    function _liquidationQuote(address user) internal view returns (bool ok, uint256 repay) {
         uint256 debt = pool.getUserDebtUSDC(user);
         if (debt == 0) return (false, 0);
         if (pool.getHealthFactor(user) >= 1e18) return (false, 0);
@@ -80,17 +67,14 @@ contract BadDebtInsolvencyPoC is Test {
         if (ethUsd == 0) return (false, 0);
 
         uint256 collateralUsdWad = (collateral * ethUsd) / 1e8;
-        uint256 maxRepayUsdWad = (collateralUsdWad * pool.BPS()) /
-            (pool.BPS() + pool.LIQ_BONUS_BPS());
+        uint256 maxRepayUsdWad = (collateralUsdWad * pool.BPS()) / (pool.BPS() + pool.LIQ_BONUS_BPS());
         uint256 maxRepayUsdc = maxRepayUsdWad / 1e12;
         if (maxRepayUsdc == 0) return (false, 0);
 
         repay = maxClose < maxRepayUsdc ? maxClose : maxRepayUsdc;
         if (repay < pool.MIN_LIQUIDATION_USDC()) return (false, 0);
 
-        uint256 seizeUsdWad = (repay *
-            1e12 *
-            (pool.BPS() + pool.LIQ_BONUS_BPS())) / pool.BPS();
+        uint256 seizeUsdWad = (repay * 1e12 * (pool.BPS() + pool.LIQ_BONUS_BPS())) / pool.BPS();
         uint256 seizeEth = (seizeUsdWad * 1e8 + ethUsd - 1) / ethUsd;
         if (seizeEth < pool.MIN_LIQUIDATION_WETH()) return (false, 0);
 
@@ -131,7 +115,7 @@ contract BadDebtInsolvencyPoC is Test {
         vm.stopPrank();
 
         assertGt(pool.getUserDebtUSDC(borrower), 0);
-        (bool stillLiquidatable, ) = _liquidationQuote(borrower);
+        (bool stillLiquidatable,) = _liquidationQuote(borrower);
         assertTrue(!stillLiquidatable);
 
         uint256 lenderSupply = pool.getUserSupplyUSDC(lender);

@@ -33,18 +33,7 @@ contract ShareRoundingDustPoC is Test {
         usdc = new MockUSDC();
         oracle = new OracleMock(FAIR_PRICE);
 
-        pool = new LendingPool(
-            address(weth),
-            address(usdc),
-            address(oracle),
-            7500,
-            8000,
-            200,
-            400,
-            2000,
-            8000,
-            1000
-        );
+        pool = new LendingPool(address(weth), address(usdc), address(oracle), 7500, 8000, 200, 400, 2000, 8000, 1000);
 
         usdc.mint(lender, 1_000_000e6);
         usdc.mint(lender2, 1_000_000e6);
@@ -61,7 +50,7 @@ contract ShareRoundingDustPoC is Test {
 
     /*
     Demuestra share dust por redondeos tras cambiar el ratio
-    
+
     - Borrower deposita 1000ETH y pide 800k USDC
     - Pasa el tiempo y se acumulan accrue, lo que cambia ratio assets/shares
     - Borrower repaga toda la deuda

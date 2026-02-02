@@ -30,18 +30,7 @@ contract OracleZeroOrStalePoC is Test {
         usdc = new MockUSDC();
         oracle = new OracleMock(FAIR_PRICE);
 
-        pool = new LendingPool(
-            address(weth),
-            address(usdc),
-            address(oracle),
-            7500,
-            8000,
-            200,
-            400,
-            2000,
-            8000,
-            1000
-        );
+        pool = new LendingPool(address(weth), address(usdc), address(oracle), 7500, 8000, 200, 400, 2000, 8000, 1000);
 
         usdc.mint(lender, 1_000_000e6);
         vm.startPrank(lender);
@@ -54,16 +43,12 @@ contract OracleZeroOrStalePoC is Test {
     - Replica el calculo de HF del protocolo pero con un precio externo ethUsd que decidimos
     - Compara el HF real con el HF que el pool cree(si el oraculo esta estancado)
     */
-    function _healthFactorAtPrice(
-        address user,
-        uint256 ethUsd
-    ) internal view returns (uint256) {
+    function _healthFactorAtPrice(address user, uint256 ethUsd) internal view returns (uint256) {
         uint256 debtUsdc = pool.getUserDebtUSDC(user);
         if (debtUsdc == 0) return type(uint256).max;
         uint256 collateral = pool.collateralWETH(user);
         uint256 collateralUsdWad = (collateral * ethUsd) / 1e8;
-        uint256 adjCollateralWad = (collateralUsdWad *
-            pool.LIQ_THRESHOLD_BPS()) / pool.BPS();
+        uint256 adjCollateralWad = (collateralUsdWad * pool.LIQ_THRESHOLD_BPS()) / pool.BPS();
         uint256 debtUsdWad = debtUsdc * 1e12;
         return (adjCollateralWad * 1e18) / debtUsdWad;
     }

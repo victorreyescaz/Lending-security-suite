@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 /*
-PoC riesgo de gobernanza: 
+PoC riesgo de gobernanza:
 
 El owner puede cambiar el oraculo a uno malicioso y permitir over-borrow con precio inflado. No es bug tecnico, es riesgo de control/gobernanza
 El owner tambien puede cambiar parametros de riesgo y volver liquidables posiciones existentes sin mover el precio.
@@ -34,18 +34,7 @@ contract GovernanceOracleSwapPoC is Test {
         oracle = new OracleMock(FAIR_PRICE);
         evilOracle = new OracleMock(EVIL_PRICE);
 
-        pool = new LendingPool(
-            address(weth),
-            address(usdc),
-            address(oracle),
-            7500,
-            8000,
-            200,
-            400,
-            2000,
-            8000,
-            1000
-        );
+        pool = new LendingPool(address(weth), address(usdc), address(oracle), 7500, 8000, 200, 400, 2000, 8000, 1000);
 
         usdc.mint(lender, 1_000_000e6);
         vm.startPrank(lender);

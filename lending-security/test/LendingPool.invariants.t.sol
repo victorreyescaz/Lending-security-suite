@@ -27,13 +27,7 @@ contract LendingPoolHandler is Test {
 
     address[] public actors;
 
-    constructor(
-        LendingPool pool_,
-        WETH9 weth_,
-        MockUSDC usdc_,
-        OracleMock oracle_,
-        address[] memory actors_
-    ) {
+    constructor(LendingPool pool_, WETH9 weth_, MockUSDC usdc_, OracleMock oracle_, address[] memory actors_) {
         pool = pool_;
         weth = weth_;
         usdc = usdc_;
@@ -53,21 +47,17 @@ contract LendingPoolHandler is Test {
     - Aplica el LIQ_THRESHOLD_BPS
     - Divide por la deuda en USD, USDC 18 decimales
     */
-    function _healthFactorWithCollateral(
-        address actor,
-        uint256 ethCollateral
-    ) internal view returns (uint256) {
+    function _healthFactorWithCollateral(address actor, uint256 ethCollateral) internal view returns (uint256) {
         uint256 debtUsdc = pool.getUserDebtUSDC(actor);
         if (debtUsdc == 0) return type(uint256).max;
         uint256 ethUsd = oracle.getEthUsdPrice();
         uint256 collateralUsdWad = (ethCollateral * ethUsd) / 1e8;
-        uint256 adjCollateralWad = (collateralUsdWad *
-            pool.LIQ_THRESHOLD_BPS()) / pool.BPS();
+        uint256 adjCollateralWad = (collateralUsdWad * pool.LIQ_THRESHOLD_BPS()) / pool.BPS();
         uint256 debtUsdWad = debtUsdc * 1e12;
         return (adjCollateralWad * 1e18) / debtUsdWad;
     }
 
-    /* 
+    /*
     Simula depósitos de colateral en fuzz
     Dado un actor, le da un value entre 1 y 10 ETH y ejecuta depositETH como ese actor
     */
@@ -99,7 +89,7 @@ contract LendingPoolHandler is Test {
 
     /*
     Simula provisión de liquidez en fuzz
-    Dado un actor, limita entre 1 y 100.000 USDC, mina USDC, aprueba pool y deposita como ese actor 
+    Dado un actor, limita entre 1 y 100.000 USDC, mina USDC, aprueba pool y deposita como ese actor
     */
     function depositUSDC(uint256 seed, uint256 amount) external {
         address actor = _actor(seed);
@@ -165,16 +155,12 @@ contract LendingPoolHandler is Test {
 
     /*
     Simula liquidaciones reales durante el fuzz
-    - Elige un user bajo-colaterizado (HF<1) 
+    - Elige un user bajo-colaterizado (HF<1)
     - Verifica que el user tiene deuda, colateral y HF<1
     - Calcula un repay valido respetando close factor y minimos
     - Minta USDC al liquidator, aprueba y llama a pool.liquidate
     */
-    function liquidate(
-        uint256 liquidatorSeed,
-        uint256 targetSeed,
-        uint256 repayAmount
-    ) external {
+    function liquidate(uint256 liquidatorSeed, uint256 targetSeed, uint256 repayAmount) external {
         address user = _actor(targetSeed);
         address liquidator = _actor(liquidatorSeed);
         if (user == liquidator && actors.length > 1) {
@@ -191,24 +177,17 @@ contract LendingPoolHandler is Test {
         uint256 maxClose = (debt * pool.CLOSE_FACTOR_BPS()) / pool.BPS();
         if (maxClose < pool.MIN_LIQUIDATION_USDC()) return;
 
-        uint256 repay = bound(
-            repayAmount,
-            pool.MIN_LIQUIDATION_USDC(),
-            maxClose
-        );
+        uint256 repay = bound(repayAmount, pool.MIN_LIQUIDATION_USDC(), maxClose);
 
         uint256 ethUsd = oracle.getEthUsdPrice();
         uint256 collateralUsdWad = (collateral * ethUsd) / 1e8;
-        uint256 maxRepayUsdWad = (collateralUsdWad * pool.BPS()) /
-            (pool.BPS() + pool.LIQ_BONUS_BPS());
+        uint256 maxRepayUsdWad = (collateralUsdWad * pool.BPS()) / (pool.BPS() + pool.LIQ_BONUS_BPS());
         uint256 maxRepayUsdc = maxRepayUsdWad / 1e12;
         if (maxRepayUsdc < pool.MIN_LIQUIDATION_USDC()) return;
         if (repay > maxRepayUsdc) repay = maxRepayUsdc;
         if (repay < pool.MIN_LIQUIDATION_USDC()) return;
 
-        uint256 seizeUsdWad = (repay *
-            1e12 *
-            (pool.BPS() + pool.LIQ_BONUS_BPS())) / pool.BPS();
+        uint256 seizeUsdWad = (repay * 1e12 * (pool.BPS() + pool.LIQ_BONUS_BPS())) / pool.BPS();
         uint256 seizeEth = (seizeUsdWad * 1e8 + ethUsd - 1) / ethUsd;
         if (seizeEth < pool.MIN_LIQUIDATION_WETH()) return;
 
@@ -238,7 +217,7 @@ contract LendingPoolHandler is Test {
 
 /*
 - Entorno de fuzz ( mocks, pool, actors y handler)
-- Declara invariantes que deben cumplirse SIEMPRE (functions invariant) 
+- Declara invariantes que deben cumplirse SIEMPRE (functions invariant)
 
 Foundry ejecuta esas invariantes despues de secuencias aleatorias del handler para validar la seguridad del protocolo
 */
@@ -257,18 +236,7 @@ contract LendingPoolInvariants is StdInvariant, Test {
         usdc = new MockUSDC();
         oracle = new OracleMock(2000e8);
 
-        pool = new LendingPool(
-            address(weth),
-            address(usdc),
-            address(oracle),
-            7500,
-            8000,
-            200,
-            400,
-            2000,
-            8000,
-            1000
-        );
+        pool = new LendingPool(address(weth), address(usdc), address(oracle), 7500, 8000, 200, 400, 2000, 8000, 1000);
 
         // Actors
         actors = new address[](3);
@@ -306,10 +274,7 @@ contract LendingPoolInvariants is StdInvariant, Test {
     - Si un actor ya esta underwater, cualquier retiro no deberia devolver la posicion a saludable ni permitir que retire algo sin romper la regla
     - Para cada actor en underwater recalcula HF si retirara 1wei de colateral. Comprueba que HF seguiria por debajo de 1
     */
-    function invariant_withdrawWouldBreakHealthFactorWhenUnderwater()
-        public
-        view
-    {
+    function invariant_withdrawWouldBreakHealthFactorWhenUnderwater() public view {
         for (uint256 i = 0; i < actors.length; i++) {
             address actor = actors[i];
             uint256 debt = pool.getUserDebtUSDC(actor);
@@ -320,8 +285,7 @@ contract LendingPoolInvariants is StdInvariant, Test {
             uint256 newCol = collateral - 1;
             uint256 ethUsd = oracle.getEthUsdPrice();
             uint256 collateralUsdWad = (newCol * ethUsd) / 1e8;
-            uint256 adjCollateralWad = (collateralUsdWad *
-                pool.LIQ_THRESHOLD_BPS()) / pool.BPS();
+            uint256 adjCollateralWad = (collateralUsdWad * pool.LIQ_THRESHOLD_BPS()) / pool.BPS();
             uint256 debtUsdWad = debt * 1e12;
             uint256 newHf = (adjCollateralWad * 1e18) / debtUsdWad;
             assertLt(newHf, 1e18);

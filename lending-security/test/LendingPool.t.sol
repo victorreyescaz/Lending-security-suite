@@ -263,9 +263,7 @@ contract LendingPoolTest is Test {
     // Solo el owner puede actualizar parametros administrativos.
     function testOnlyOwnerCanUpdateParams() public {
         vm.startPrank(bob);
-        vm.expectRevert(
-            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob)
-        );
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
         pool.setReserveFactor(500);
         vm.stopPrank();
     }
@@ -273,19 +271,13 @@ contract LendingPoolTest is Test {
     // Solo el owner puede llamar setOracle, setRiskParams y setRateModel.
     function testOnlyOwnerCanCallAdminFunctions() public {
         vm.startPrank(bob);
-        vm.expectRevert(
-            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob)
-        );
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
         pool.setOracle(address(oracle));
 
-        vm.expectRevert(
-            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob)
-        );
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
         pool.setRiskParams(7000, 7500);
 
-        vm.expectRevert(
-            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob)
-        );
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
         pool.setRateModel(100, 200, 300, 7000);
         vm.stopPrank();
     }

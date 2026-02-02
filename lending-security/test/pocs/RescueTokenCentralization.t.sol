@@ -38,18 +38,7 @@ contract RescueTokenCentralizationPoC is Test {
         usdc = new MockUSDC();
         oracle = new OracleMock(2000e8);
 
-        pool = new LendingPool(
-            address(weth),
-            address(usdc),
-            address(oracle),
-            7500,
-            8000,
-            200,
-            400,
-            2000,
-            8000,
-            1000
-        );
+        pool = new LendingPool(address(weth), address(usdc), address(oracle), 7500, 8000, 200, 400, 2000, 8000, 1000);
 
         token = new RescueToken();
     }

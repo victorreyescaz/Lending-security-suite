@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 /*
 PoC de manipulacion de oraculo
 
-Si el precio ETH/USD se puede inflar de forma artificial, un atacante puede pedir mas USDC del permitido y quedar underwater cuando el precio vuelve a la normalidad. 
+Si el precio ETH/USD se puede inflar de forma artificial, un atacante puede pedir mas USDC del permitido y quedar underwater cuando el precio vuelve a la normalidad.
 Esto no es un bug si el oraculo es confiable, pero demuestra el riesgo de usar un feed manipulable.
 */
 
@@ -31,18 +31,7 @@ contract OracleManipulationPoC is Test {
         usdc = new MockUSDC();
         oracle = new OracleMock(FAIR_PRICE);
 
-        pool = new LendingPool(
-            address(weth),
-            address(usdc),
-            address(oracle),
-            7500,
-            8000,
-            200,
-            400,
-            2000,
-            8000,
-            1000
-        );
+        pool = new LendingPool(address(weth), address(usdc), address(oracle), 7500, 8000, 200, 400, 2000, 8000, 1000);
 
         usdc.mint(lender, 1_000_000e6);
         vm.startPrank(lender);
