@@ -32,5 +32,5 @@ forge coverage
 ```
 
 ## Notas
-- Slither puede generar avisos informativos; conviene revisar el output y decidir si son falsos positivos o riesgos reales.
+- Slither puede generar avisos informativos, conviene revisar el output y decidir si son falsos positivos o riesgos reales.
 - Para cambios grandes, es buena práctica correr los comandos localmente antes de push.
