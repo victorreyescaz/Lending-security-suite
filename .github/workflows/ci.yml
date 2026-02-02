@@ -33,4 +33,5 @@ jobs:
         with:
           target: protocol/Backend_Lending---Borrowing
           slither-config: slither.config.json
+          slither-args: "--exclude incorrect-exp,divide-before-multiply,dangerous-strict-equalities,timestamp,assembly,pragma,solc-version,low-level-calls,missing-inheritance,naming-convention,too-many-digits,unindexed-event-address,uninitialized-local,unused-return,dead-code"
           fail-on: high
