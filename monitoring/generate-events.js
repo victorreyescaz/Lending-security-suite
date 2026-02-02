@@ -4,7 +4,7 @@ Su objetivo es generar actividad on-chain para que el monitor muestre eventos y 
 
 - Usa una cuenta de Anvil y se conecta al pool
 - Minta USDC para esa cuenta y aprueba el pool
-- Ejecuta acciones como depositUSDC, depositETH, borrowUASC, repayUASC y accrue para emitir eventos y poder verlos en el monitor
+- Ejecuta acciones como depositUSDC, depositETH, borrowUSDC, repayUSDC y accrue para emitir eventos y poder verlos en el monitor
 */
 
 import { readFileSync } from "node:fs";
@@ -57,20 +57,20 @@ async function main() {
   await (await usdc.mint(addr, 500_000e6)).wait();
   await (await usdc.approve(addresses.pool, BigInt(2) ** BigInt(256) - 1n)).wait();
 
-  // deposit USDC (SupplyUSDC)
+  // deposit USDC 
   await (await pool.depositUSDC(100_000e6)).wait();
 
-  // deposit ETH (Deposit)
+  // deposit ETH 
   await (await pool.depositETH({ value: parseEther("1") })).wait();
 
-  // borrow (Borrow)
+  // borrow 
   const maxBorrow = await pool.getBorrowMax(addr);
   await (await pool.borrowUSDC(maxBorrow / 2n)).wait();
 
-  // repay (Repay)
+  // repay 
   await (await pool.repayUSDC(10_000e6)).wait();
 
-  // accrue (Accrue)
+  // accrue 
   await (await pool.accrue()).wait();
 
   console.log("Events generated.");

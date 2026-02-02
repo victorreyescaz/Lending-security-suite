@@ -1,0 +1,8 @@
+# Monitoring artifacts
+monitoring/addresses.json
+monitoring/node_modules
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp

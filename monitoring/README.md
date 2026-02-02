@@ -35,10 +35,10 @@ node monitor.js
 **En terminal nº4:**
 ```bash
 cd monitoring
-export PRIVATE_KEY=<OTRA_PRIVATE_KEY_DE_ANVIL>
+export PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
 node generate-events.js
 ```
-Usa **una private key distinta** a la del deploy para evitar conflictos de nonce.
+Usa **una private key distinta** a la del deploy para evitar conflictos de nonce. En este caso, la **PRIVATE_KEY** elegida es la de la segunda cuenta de Anvil
 
 ## Configuración opcional (.env)
 Puedes crear un `.env` basado en `.env.example` para definir `RPC_URL` y `ADDR_PATH`.
